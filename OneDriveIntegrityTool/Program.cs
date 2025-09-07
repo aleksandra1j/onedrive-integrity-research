@@ -18,43 +18,38 @@ namespace OneDriveIntegrityTool
                 var folderId = await oneDriveService.CreateTestFolderAsync();
                 Console.WriteLine($"Test folder ready! ID: {folderId}\n");
 
-                Console.WriteLine("Testing file upload...");
-                string testFilePath = Path.Combine("TestFiles", "test-file.txt");
+                string[] testFiles = Directory.GetFiles("TestFiles");
+                Console.WriteLine($"Found {testFiles.Length} test files to process\n");
 
-                if (File.Exists(testFilePath))
+                foreach (string testFilePath in testFiles)
                 {
+                    if (Path.GetFileName(testFilePath).StartsWith("downloaded-"))
+                        continue;
+
+                    var fileInfo = new FileInfo(testFilePath);
+                    Console.WriteLine($"=== Testing: {Path.GetFileName(testFilePath)} ({fileInfo.Length} bytes) ===");
+
                     var uploadedFileName = await oneDriveService.UploadFileAsync(testFilePath, folderId);
-                    Console.WriteLine($"Upload test complete!\n");
 
-                    Console.WriteLine("Testing file download...");
-                    byte[] downloadedContent = await oneDriveService.DownloadFileAsync("test-file.txt", folderId);
-
-                    string downloadPath = Path.Combine("TestFiles", "downloaded-test-file.txt");
+                    byte[] downloadedContent = await oneDriveService.DownloadFileAsync(uploadedFileName, folderId);
+                    string downloadPath = Path.Combine("TestFiles", $"downloaded-{uploadedFileName}");
                     await File.WriteAllBytesAsync(downloadPath, downloadedContent);
-                    Console.WriteLine($"File downloaded and saved to: {downloadPath}\n");
 
-                    Console.WriteLine("Testing file integrity...");
                     var integrityService = new FileIntegrityService();
                     bool filesMatch = integrityService.CompareFiles(testFilePath, downloadPath);
 
                     if (filesMatch)
                     {
-                        Console.WriteLine("SUCCESS: File integrity preserved! Files are identical.");
+                        Console.WriteLine("SUCCESS: File integrity preserved!");
                     }
                     else
                     {
-                        Console.WriteLine("FAILURE: File integrity compromised! Files differ.");
+                        Console.WriteLine("FAILURE: File integrity compromised!");
                     }
-
-                }
-                else
-                {
-                    Console.WriteLine($"Test file not found: {testFilePath}");
-                    Console.WriteLine("Please create TestFiles/test-file.txt first");
+                    Console.WriteLine();
                 }
 
-                Console.WriteLine("File upload testing complete!");
-
+                Console.WriteLine("All file integrity tests complete!");
             }
             catch (Exception ex)
             {
